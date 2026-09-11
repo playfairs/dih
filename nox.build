@@ -1,0 +1,11 @@
+project "Dih" {
+    version = "1.0.0"
+    description = "a shitty game where u catch a button"
+    license = "Unlicense"
+    edition = "1"
+
+    executable "Dih" {
+        sources = ["run.c"]
+        install = false
+    }
+}

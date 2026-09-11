@@ -1,0 +1,57 @@
+tasks:
+    build:
+        run: swift build -c release
+    build-debug:
+        run: swift build -c debug
+    app:
+        @nox build
+        run: |
+            APP_NAME="Dih"
+            APP_BUNDLE_NAME="${APP_NAME}.app"
+            BUILD_DIR=".build/arm64-apple-macosx/release"
+            APP_BUILD_PATH="${BUILD_DIR}/${APP_BUNDLE_NAME}"
+
+            if [ -d "${APP_BUILD_PATH}" ]; then
+                rm -rf "${APP_BUILD_PATH}"
+            fi
+
+            mkdir -p "${APP_BUILD_PATH}/Contents/MacOS"
+            mkdir -p "${APP_BUILD_PATH}/Contents/Resources"
+
+            cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUILD_PATH}/Contents/MacOS/"
+
+            cp "Sources/${APP_NAME}/Info.plist" "${APP_BUILD_PATH}/Contents/"
+
+            cp -r "Sources/${APP_NAME}/Resources/"* "${APP_BUILD_PATH}/Contents/Resources/"
+
+            echo "App bundle created at: ${APP_BUILD_PATH}"
+            echo "You can now run: open ${APP_BUILD_PATH}"
+    app-debug:
+        @nox build-debug
+        run: |
+            APP_NAME="Dih"
+            APP_BUNDLE_NAME="${APP_NAME}.app"
+            BUILD_DIR=".build/arm64-apple-macosx/debug"
+            APP_BUILD_PATH="${BUILD_DIR}/${APP_BUNDLE_NAME}"
+
+            if [ -d "${APP_BUILD_PATH}" ]; then
+                rm -rf "${APP_BUILD_PATH}"
+            fi
+
+            mkdir -p "${APP_BUILD_PATH}/Contents/MacOS"
+            mkdir -p "${APP_BUILD_PATH}/Contents/Resources"
+
+            cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUILD_PATH}/Contents/MacOS/"
+
+            cp "Sources/${APP_NAME}/Info.plist" "${APP_BUILD_PATH}/Contents/"
+
+            cp -r "Sources/${APP_NAME}/Resources/"* "${APP_BUILD_PATH}/Contents/Resources/"
+
+            echo "App bundle created at: ${APP_BUILD_PATH}"
+            echo "You can now run: open ${APP_BUILD_PATH}"
+    clean:
+        run: swift package clean
+    clean-app:
+        run: rm -rf .build/arm64-apple-macosx/release/Dih.app .build/arm64-apple-macosx/debug/Dih.app
+    start:
+        run: swift run
