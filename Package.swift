@@ -11,11 +11,23 @@ let package = Package(
         .executable(
             name: "Dih",
             targets: ["Dih"]
+        ),
+        .library(
+            name: "DihCore",
+            targets: ["DihCore"]
         )
     ],
     targets: [
+        .target(
+            name: "DihCore"
+        ),
         .executableTarget(
-            name: "Dih"
+            name: "Dih",
+            dependencies: ["DihCore"]
+        ),
+        .testTarget(
+            name: "DihCoreTests",
+            dependencies: ["DihCore"]
         )
     ]
 )
