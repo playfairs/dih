@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dih}",
+            "name": "Debug Dih",
+            "target": "Dih",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug Dih"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dih}",
+            "name": "Release Dih",
+            "target": "Dih",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release Dih"
+        }
+    ]
+}
