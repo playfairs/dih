@@ -9,6 +9,7 @@ struct DihApp: App {
     @StateObject private var game: DihGame
 
     init() {
+        DihIcon.configureRuntimeIcon()
         let settings = DihSettings()
         _settings = StateObject(wrappedValue: settings)
         _game = StateObject(wrappedValue: DihGame(settings: settings))

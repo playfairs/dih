@@ -23,7 +23,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "Dih",
-            dependencies: ["DihCore"]
+            dependencies: ["DihCore"],
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "DihCoreTests",
