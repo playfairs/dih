@@ -29,6 +29,13 @@ struct StatsView: View {
                     StatCard(title: "Points / minute", value: game.averagePointsPerMinute.formatted(.number.precision(.fractionLength(1))), icon: "speedometer")
                     StatCard(title: "Time played", value: formatTime(game.save.totalTimePlayed), icon: "clock.fill")
                     StatCard(title: "Passive points", value: "\(game.save.passivePointsGenerated)", icon: "phone.fill")
+                    StatCard(title: "Offline points", value: "\(game.save.totalOfflinePoints)", icon: "moon.stars.fill")
+                    StatCard(title: "Hotline payouts", value: "\(game.save.totalHotlinePayouts)", icon: "arrow.down.circle.fill")
+                    StatCard(title: "Rare catches", value: "\(game.save.rareCatches)", icon: "sparkles")
+                    StatCard(title: "Critical catches", value: "\(game.save.criticalCatches)", icon: "burst.fill")
+                    StatCard(title: "Golden catches", value: "\(game.save.goldenCatches)", icon: "crown.fill")
+                    StatCard(title: "Longest session", value: formatTime(game.save.longestSession), icon: "hourglass")
+                    StatCard(title: "Resets", value: "\(game.save.resetCount)", icon: "arrow.counterclockwise")
                     StatCard(title: "Upgrades", value: "\(game.totalUpgrades)", icon: "arrow.up.circle.fill")
                     StatCard(title: "Clone windows", value: "\(game.save.totalCloneWindowsOpened)", icon: "square.on.square")
                 }

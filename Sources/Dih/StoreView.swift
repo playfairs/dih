@@ -16,8 +16,17 @@ struct StoreView: View {
                     Spacer()
                     CurrencyView(points: game.points)
                 }
-                LazyVStack(spacing: 10) {
-                    ForEach(DihUpgradeID.allCases) { id in UpgradeCard(id: id) }
+                ForEach(DihUpgradeTier.allCases, id: \.self) { tier in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(tier.rawValue.uppercased())
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(.orange)
+                        LazyVStack(spacing: 10) {
+                            ForEach(DihUpgradeDefinition.all.filter { $0.tier == tier }) { definition in
+                                UpgradeCard(id: definition.id)
+                            }
+                        }
+                    }
                 }
             }
             .padding(28)

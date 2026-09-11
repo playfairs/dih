@@ -6,16 +6,20 @@ public final class DihGame: ObservableObject {
     @Published public private(set) var save = DihSaveData()
     @Published public private(set) var offlineSummary: String?
     @Published public private(set) var toast: String?
+    @Published public private(set) var scorePopup: String?
+    @Published public private(set) var scorePopupID = 0
     @Published public private(set) var passiveProgress = 0.0
     @Published public var buttonPosition = CGPoint(x: 250, y: 210)
     @Published public var buttonText = "click me"
     @Published public var message = "Catch me."
 
     public let persistence: DihPersistence
+    public let settings: DihSettings
     private var passiveTask: Task<Void, Never>?
     private var lastTick = Date()
     private var sessionCloneWindows = 0
     private var loaded = false
+    private var lastButtonMove = Date.distantPast
 
     private let buttonNames = ["catch me", "nope", "again", "try again", "lol", ">:)"]
     private let reactions = [
@@ -31,8 +35,9 @@ public final class DihGame: ObservableObject {
         "A wise person once said: ship it and observe."
     ]
 
-    public init(persistence: DihPersistence = DihPersistence()) {
+    public init(persistence: DihPersistence = DihPersistence(), settings: DihSettings = DihSettings()) {
         self.persistence = persistence
+        self.settings = settings
         loadProgress()
         passiveTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -70,6 +75,9 @@ public final class DihGame: ObservableObject {
         max(0, payoutInterval * (1 - passiveProgress))
     }
     public var targetScale: Double { DihEconomy.targetScale(in: save) }
+    public var effectiveTargetScale: Double {
+        targetScale * DihEconomy.catchRadiusMultiplier(in: save) * (settings.data.largerButton ? 1.25 : 1)
+    }
     public var unlockedAchievements: [DihAchievementID] {
         save.achievements.compactMap(DihAchievementID.init(rawValue:))
     }
@@ -91,7 +99,7 @@ public final class DihGame: ObservableObject {
     }
 
     @discardableResult
-    public func caught(in size: CGSize, isClone: Bool = false) -> Bool {
+    public func caught(in arena: CGRect, buttonSize: CGSize, isClone: Bool = false) -> Bool {
         guard loaded else { return false }
 
         save.totalAttempts += 1
@@ -100,13 +108,35 @@ public final class DihGame: ObservableObject {
         save.bestStreak = max(save.bestStreak, save.currentStreak)
 
         var reward = DihEconomy.pointsPerCatch(in: save) + DihEconomy.comboBonus(in: save)
+        if isClone { reward *= DihEconomy.cloneRewardMultiplier(in: save) }
         if Double.random(in: 0...1) < DihEconomy.bonusChance(in: save) {
             reward += 2
+            save.rareCatches += 1
             message = "LUCKY! +\(reward)"
         } else {
             message = reactions.randomElement() ?? "Nice."
         }
+        if !settings.data.showReactions { message = "" }
+        if Double.random(in: 0...1) < DihEconomy.criticalChance(in: save) {
+            reward *= 5
+            save.criticalCatches += 1
+            message = "CRITICAL! +\(reward)"
+        }
+        if Double.random(in: 0...1) < DihEconomy.goldenChance(in: save) {
+            reward *= 10
+            save.goldenCatches += 1
+            save.rareCatches += 1
+            message = "GOLDEN DIH! +\(reward)"
+        }
         addPoints(reward)
+        scorePopup = "+\(reward)"
+        scorePopupID += 1
+        let popupID = scorePopupID
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(700))
+            guard let self, scorePopupID == popupID else { return }
+            scorePopup = nil
+        }
         save.bestScore = max(save.bestScore, save.points)
 
         if isClone {
@@ -114,30 +144,63 @@ public final class DihGame: ObservableObject {
         }
         evaluateAchievements()
 
-        let shouldOpenClone = !isClone && sessionCloneWindows < DihEconomy.cloneLimit(in: save) && Int.random(in: 0..<DihEconomy.cloneChance(in: save)) == 0
+        let shouldOpenClone = settings.data.cloneWindowsEnabled && !isClone && sessionCloneWindows < min(settings.data.maximumCloneWindows, DihEconomy.cloneLimit(in: save)) && Int.random(in: 0..<DihEconomy.cloneChance(in: save)) == 0
         if shouldOpenClone {
             sessionCloneWindows += 1
             save.totalCloneWindowsOpened += 1
             message = "I brought a friend."
         }
         buttonText = buttonNames.randomElement() ?? "catch me"
-        moveButton(in: size)
+        moveButton(in: arena, buttonSize: buttonSize)
         persist()
         return shouldOpenClone
     }
 
-    public func runAway(from size: CGSize) {
+    public func runAway(from arena: CGRect, buttonSize: CGSize) {
         guard loaded else { return }
-        guard Double.random(in: 0...1) < DihEconomy.runAwayChance(in: save) else {
+        guard settings.data.movementEnabled && settings.data.fleeBehaviorEnabled else { return }
+        var escapeChance = DihEconomy.runAwayChance(in: save)
+        if settings.data.slowerButton { escapeChance *= 0.7 }
+        switch settings.data.difficulty {
+        case .relaxed: escapeChance *= 0.75
+        case .normal: break
+        case .spicy: escapeChance *= 1.2
+        }
+        guard Double.random(in: 0...1) < min(1, escapeChance) else {
             message = "I predicted that."
             return
         }
 
         save.totalEscapes += 1
-        save.currentStreak = 0
-        message = "RUN!"
-        buttonPosition = randomPosition(in: size)
+        if Double.random(in: 0...1) >= DihEconomy.secondChance(in: save) {
+            save.currentStreak = 0
+        } else {
+            message = "SECOND CHANCE!"
+        }
+        if message != "SECOND CHANCE!" { message = "RUN!" }
+        moveButton(in: arena, buttonSize: buttonSize)
         persist()
+    }
+
+    public func autonomousMoveIfNeeded(in arena: CGRect, buttonSize: CGSize) {
+        guard loaded,
+              settings.data.movementEnabled,
+              !settings.data.reducedMovement,
+              Date().timeIntervalSince(lastButtonMove) >= DihEconomy.movementDelay(in: save),
+              Double.random(in: 0...1) < DihEconomy.autonomousMovementChance(in: save) else { return }
+
+        message = settings.data.showReactions ? "I moved on my own." : ""
+        moveButton(in: arena, buttonSize: buttonSize)
+        persist()
+    }
+
+    public func updateButtonPosition(in arena: CGRect, buttonSize: CGSize) {
+        var nextPosition = DihArena.clampedCenter(in: arena, buttonSize: buttonSize, desired: buttonPosition)
+        if settings.data.reducedMovement {
+            nextPosition = DihArena.clampedCenter(in: arena, buttonSize: buttonSize, desired: CGPoint(x: arena.midX, y: arena.midY))
+        }
+        guard nextPosition != buttonPosition else { return }
+        buttonPosition = nextPosition
     }
 
     public func callHotline() -> String {
@@ -172,8 +235,10 @@ public final class DihGame: ObservableObject {
     }
 
     public func resetProgress() {
+        let resetCount = save.resetCount + 1
         let newSave = DihSaveData()
         save = newSave
+        save.resetCount = resetCount
         offlineSummary = nil
         toast = "Progress reset. The button is smug again."
         buttonText = "click me"
@@ -202,12 +267,13 @@ public final class DihGame: ObservableObject {
         save = loadedSave
         let now = Date()
         if loadedSave.helperActive {
-            let elapsed = min(max(0, now.timeIntervalSince(loadedSave.lastUpdate)), DihEconomy.maximumOfflineDuration)
+            let elapsed = min(max(0, now.timeIntervalSince(loadedSave.lastUpdate)), DihEconomy.offlineDuration(in: loadedSave))
             let payouts = Int(elapsed / DihEconomy.passiveInterval(in: loadedSave))
             if payouts > 0 {
                 let generated = payouts * DihEconomy.passivePointsPerInterval(in: loadedSave)
                 addPoints(generated)
                 save.passivePointsGenerated += generated
+                save.totalOfflinePoints += generated
                 offlineSummary = "You were gone for \(Self.formatDuration(elapsed)). Your hotline generated \(generated) points."
                 evaluateAchievements()
             }
@@ -222,6 +288,7 @@ public final class DihGame: ObservableObject {
         guard loaded else { return }
         let now = Date()
         save.totalTimePlayed += max(0, now.timeIntervalSince(lastTick))
+        save.longestSession = max(save.longestSession, save.totalTimePlayed)
         lastTick = now
         let elapsed = now.timeIntervalSince(save.lastUpdate)
         passiveProgress = min(1, elapsed / payoutInterval)
@@ -232,6 +299,8 @@ public final class DihGame: ObservableObject {
         save.lastUpdate = save.lastUpdate.addingTimeInterval(Double(payouts) * payoutInterval)
         addPoints(generated)
         save.passivePointsGenerated += generated
+        save.totalHotlinePayouts += payouts
+        if settings.data.showPassiveNotifications { toast = "The hotline generated +\(generated) points." }
         passiveProgress = 0
         evaluateAchievements()
         persist()
@@ -242,15 +311,17 @@ public final class DihGame: ObservableObject {
         save.totalPointsEarned += max(0, amount)
     }
 
-    private func moveButton(in size: CGSize) {
-        buttonPosition = randomPosition(in: size)
+    private func moveButton(in arena: CGRect, buttonSize: CGSize) {
+        guard settings.data.movementEnabled else { return }
+        let now = Date()
+        guard now.timeIntervalSince(lastButtonMove) >= DihEconomy.movementDelay(in: save) else { return }
+        lastButtonMove = now
+        buttonPosition = randomPosition(in: arena, buttonSize: buttonSize)
     }
 
-    private func randomPosition(in size: CGSize) -> CGPoint {
-        let inset = CGFloat(80 * targetScale)
-        let x = CGFloat.random(in: inset...max(inset + 1, size.width - inset))
-        let y = CGFloat.random(in: 120...max(121, size.height - 55))
-        return CGPoint(x: x, y: y)
+    private func randomPosition(in arena: CGRect, buttonSize: CGSize) -> CGPoint {
+        var generator = SystemRandomNumberGenerator()
+        return DihArena.randomCenter(in: arena, buttonSize: buttonSize, generator: &generator)
     }
 
     private func evaluateAchievements() {
@@ -260,7 +331,10 @@ public final class DihGame: ObservableObject {
             (.firstUpgrade, totalUpgrades >= 1), (.firstHotlineCall, save.totalHotlineCalls >= 1),
             (.firstPassivePoint, save.passivePointsGenerated >= 1), (.passive100, save.passivePointsGenerated >= 100),
             (.points10000, save.totalPointsEarned >= 10_000), (.streak10, save.bestStreak >= 10),
-            (.streak50, save.bestStreak >= 50), (.clone10, save.totalCloneWindowsOpened >= 10)
+            (.streak50, save.bestStreak >= 50), (.clone10, save.totalCloneWindowsOpened >= 10),
+            (.firstOffline, save.totalOfflinePoints > 0), (.upgradeCollector, totalUpgrades >= 10),
+            (.goldenCatch, save.goldenCatches > 0), (.criticalCatch, save.criticalCatches > 0),
+            (.millionaire, save.points >= 1_000_000), (.upgradeEverything, totalUpgrades >= DihUpgradeID.allCases.count)
         ]
         for (achievement, isComplete) in checks where isComplete && !save.achievements.contains(achievement.rawValue) {
             save.achievements.append(achievement.rawValue)

@@ -10,6 +10,7 @@ struct DihView: View {
             StoreView().tabItem { Label("Store", systemImage: "cart.fill") }
             HotlineView().tabItem { Label("Hotline", systemImage: "phone.down.fill") }
             StatsView().tabItem { Label("Stats", systemImage: "chart.bar.fill") }
+            SettingsView().tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
         .frame(minWidth: 700, minHeight: 540)
         .overlay(alignment: .top) {
@@ -30,15 +31,13 @@ struct DihView: View {
 }
 
 struct CatchMeView: View {
-    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var game: DihGame
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
+        ZStack {
+            Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("DIH ARCADE").font(.caption.weight(.black)).foregroundStyle(.orange)
@@ -65,31 +64,16 @@ struct CatchMeView: View {
 
                     Divider()
                     Text("The button knows you are coming.").font(.headline)
-                    Spacer()
-                }
-                .padding(24)
+                    DihPlayfield()
+                        .frame(minHeight: 250)
 
-                Button(game.buttonText) {
-                    if game.caught(in: geometry.size) { openWindow(id: "dih") }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .scaleEffect(game.targetScale)
-                .position(game.buttonPosition)
-                .animation(.spring(response: 0.25, dampingFraction: 0.6), value: game.buttonPosition)
-                .onHover { hovering in
-                    if hovering { game.runAway(from: geometry.size) }
-                }
-
-                VStack {
                     if let summary = game.offlineSummary {
                         Text(summary)
                             .font(.caption)
                             .padding(10)
                             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
-                            .frame(maxWidth: 430)
                     }
-                    Spacer()
+
                     HStack {
                         Text("Hovering counts as cheating.").font(.caption).foregroundStyle(.tertiary)
                         Spacer()
@@ -97,8 +81,7 @@ struct CatchMeView: View {
                             .font(.caption.monospaced()).foregroundStyle(.tertiary)
                     }
                 }
-                .padding(18)
+                .padding(24)
             }
         }
-    }
 }

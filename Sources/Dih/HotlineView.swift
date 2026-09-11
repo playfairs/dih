@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HotlineView: View {
     @EnvironmentObject private var game: DihGame
+    @EnvironmentObject private var settings: DihSettings
     @State private var answer = "Press the button for advice you absolutely did not request."
 
     var body: some View {
@@ -28,6 +29,7 @@ struct HotlineView: View {
                 }
                 Spacer()
                 Button(game.helperActive ? "Call again" : "Call hotline", systemImage: "phone.fill") {
+                    DihSoundEffects.play(.hotline, settings: settings)
                     answer = game.callHotline()
                 }
                 .buttonStyle(.borderedProminent)

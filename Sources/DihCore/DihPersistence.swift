@@ -2,6 +2,7 @@ import Foundation
 
 public actor DihPersistence {
     private let fileURL: URL
+    private var latestSavedDate: Date?
 
     public init(fileManager: FileManager = .default) {
         let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -26,11 +27,13 @@ public actor DihPersistence {
     }
 
     public func save(_ save: DihSaveData) {
+        if let latestSavedDate, save.lastSaved < latestSavedDate { return }
         do {
             let directory = fileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let data = try JSONEncoder().encode(save)
             try data.write(to: fileURL, options: .atomic)
+            latestSavedDate = save.lastSaved
         } catch {
             // a failed save should never make the game unplayable :3
         }
