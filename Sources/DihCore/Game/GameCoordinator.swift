@@ -302,9 +302,9 @@ public final class DihGame: ObservableObject {
       let elapsed = min(
         max(0, now.timeIntervalSince(loadedSave.lastUpdate)),
         DihEconomy.offlineDuration(in: loadedSave))
-      let payouts = Int(elapsed / DihEconomy.passiveInterval(in: loadedSave))
-      if payouts > 0 {
-        let generated = payouts * DihEconomy.passivePointsPerInterval(in: loadedSave)
+      let payoutCount = DihEconomy.passivePayoutCount(for: elapsed, in: loadedSave)
+      if payoutCount > 0 {
+        let generated = payoutCount * DihEconomy.passivePointsPerInterval(in: loadedSave)
         let awarded = DihEconomy.awardPassivePayout(in: &save, generated: generated)
         save.totalOfflinePoints += awarded
         offlineSummary =
@@ -325,14 +325,19 @@ public final class DihGame: ObservableObject {
     save.longestSession = max(save.longestSession, save.totalTimePlayed)
     lastTick = now
     let elapsed = now.timeIntervalSince(save.lastUpdate)
+    let payoutInterval = DihEconomy.passiveInterval(in: save)
     passiveProgress = min(1, elapsed / payoutInterval)
-    guard save.ownedHelpers > 0, elapsed >= payoutInterval else { return }
 
-    let payouts = Int(elapsed / payoutInterval)
-    let generated = payouts * DihEconomy.passivePointsPerInterval(in: save)
-    save.lastUpdate = save.lastUpdate.addingTimeInterval(Double(payouts) * payoutInterval)
+    guard save.ownedHelpers > 0 else { return }
+    let payoutCount = DihEconomy.passivePayoutCount(for: elapsed, in: save)
+    guard payoutCount > 2 else { return }
+
+    let generated = payoutCount * DihEconomy.passivePointsPerInterval(in: save)
     let awarded = DihEconomy.awardPassivePayout(in: &save, generated: generated)
-    save.totalHotlinePayouts += payouts
+    save.totalHotlinePayouts += payoutCount
+    save.lastUpdate = payoutInterval > 1
+      ? save.lastUpdate.addingTimeInterval(Double(payoutCount) * payoutInterval)
+      : now
     if settings.data.showPassiveNotifications {
       toast = "The hotline generated +\(awarded) points."
     }
