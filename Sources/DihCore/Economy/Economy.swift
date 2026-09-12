@@ -20,6 +20,61 @@ public enum DihEconomy {
     return max(1, Int(ceil(safeCost)))
   }
 
+  public static func cost(for upgrade: DihUpgradeID, fromLevel: Int, quantity: Int) -> Int {
+    guard quantity > 0 else { return 0 }
+    var total = 0
+    let limit = min(max(0, quantity), DihUpgradeConstants.defaultMaximumLevel)
+    let definition = DihUpgradeDefinition.definition(for: upgrade)
+    let remainingToMax = definition.maximumLevel - fromLevel
+    let buyable = min(limit, max(0, remainingToMax))
+    guard buyable > 0 else { return 0 }
+    for offset in 0..<buyable {
+      total += cost(for: upgrade, level: fromLevel + offset)
+    }
+    return total
+  }
+
+  public static func cost(for upgrade: DihUpgradeID, quantity: Int, in save: DihSaveData) -> Int {
+    cost(for: upgrade, fromLevel: level(for: upgrade, in: save), quantity: quantity)
+  }
+
+  public static func maxAffordable(for upgrade: DihUpgradeID, level: Int, points: Int) -> Int {
+    let definition = DihUpgradeDefinition.definition(for: upgrade)
+    var affordable = 0
+    var remaining = max(0, points)
+    var probe = level
+    while affordable < definition.maximumLevel - level && remaining >= cost(for: upgrade, level: probe) {
+      let price = cost(for: upgrade, level: probe)
+      remaining -= price
+      affordable += 1
+      probe += 1
+    }
+    return affordable
+  }
+
+  public static func maxAffordable(for upgrade: DihUpgradeID, in save: DihSaveData) -> Int {
+    maxAffordable(for: upgrade, level: level(for: upgrade, in: save), points: save.points)
+  }
+
+  @discardableResult
+  public static func purchase(
+    _ upgrade: DihUpgradeID, quantity: Int = 1, in save: inout DihSaveData
+  ) -> Int {
+    let definition = DihUpgradeDefinition.definition(for: upgrade)
+    let currentLevel = level(for: upgrade, in: save)
+    guard quantity > 0 else { return 0 }
+    guard currentLevel < definition.maximumLevel else { return 0 }
+    let affordableQuantity = maxAffordable(for: upgrade, level: currentLevel, points: save.points)
+    let buyableQuantity = min(quantity, definition.maximumLevel - currentLevel, affordableQuantity)
+    guard buyableQuantity > 0 else { return 0 }
+
+    let totalCost = cost(for: upgrade, fromLevel: currentLevel, quantity: buyableQuantity)
+    guard totalCost <= save.points else { return 0 }
+    save.points -= totalCost
+    save.upgrades[upgrade.rawValue, default: 0] = currentLevel + buyableQuantity
+    return buyableQuantity
+  }
+
   public static func helperCost(forOwned owned: Int) -> Int {
     let n = max(0, owned)
     let raw = Double(helperPurchaseBaseCost) * pow(helperCostGrowthRate, Double(n))
@@ -91,6 +146,10 @@ public enum DihEconomy {
 
   public static func targetScale(in save: DihSaveData) -> Double {
     (1 + Double(level(for: .biggerTarget, in: save)) * 0.08) * cloneTargetMultiplier(in: save)
+  }
+
+  public static func effectiveTargetScale(in save: DihSaveData, largerButton: Bool) -> Double {
+    targetScale(in: save) * catchRadiusMultiplier(in: save) * (largerButton ? 1.25 : 1)
   }
 
   public static func passivePointsPerInterval(in save: DihSaveData) -> Int {

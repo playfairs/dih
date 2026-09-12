@@ -4,109 +4,121 @@ import SwiftUI
 struct UpgradeCard: View {
   @EnvironmentObject private var game: DihGame
   let id: DihUpgradeID
+  let selectedBulkQuantity: Int
 
   private var definition: DihUpgradeDefinition { game.definition(for: id) }
   private var level: Int { game.level(for: id) }
   private var isMaxed: Bool { level >= definition.maximumLevel }
-  private var affordable: Bool { game.points >= game.cost(for: id) }
+  private var locked: Bool { !game.isUnlocked(id) }
+
+  private var selectedPurchaseQuantity: Int {
+    if selectedBulkQuantity < 0 {
+      return DihEconomy.maxAffordable(for: id, in: game.save)
+    }
+    return min(selectedBulkQuantity, max(0, definition.maximumLevel - level))
+  }
+
+  private var selectedCost: Int {
+    guard selectedPurchaseQuantity > 0 else { return 0 }
+    return DihEconomy.cost(for: id, fromLevel: level, quantity: selectedPurchaseQuantity)
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      HStack(alignment: .top) {
-        Image(systemName: definition.icon).font(.title2).foregroundStyle(.orange).frame(width: 30)
-        VStack(alignment: .leading, spacing: 3) {
-          Text(definition.name).font(.headline)
-          Text(definition.description).font(.callout).foregroundStyle(.secondary)
+      HStack(alignment: .top, spacing: 10) {
+        Image(systemName: definition.icon)
+          .font(.title3)
+          .foregroundStyle(.orange)
+          .frame(width: 34, height: 34)
+          .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+
+        VStack(alignment: .leading, spacing: 4) {
+          Text(definition.name)
+            .font(.headline)
+            .foregroundStyle(.primary)
+          Text(definition.description)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
         }
+
         Spacer()
-        Text("Lv. \(level)")
-          .font(.caption.weight(.bold))
-          .padding(.horizontal, 8)
-          .padding(.vertical, 4)
-          .background(.quaternary, in: Capsule())
+
+        VStack(alignment: .trailing, spacing: 3) {
+          Text("LEVEL")
+            .font(.caption2.weight(.black))
+            .foregroundStyle(.secondary)
+          Text("\(level)")
+            .font(.caption.weight(.black))
+            .foregroundStyle(.orange)
+        }
       }
 
-      HStack {
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Now: \(effectText)")
-          if !isMaxed { Text("Next: \(nextEffectText)") }
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        Spacer()
-        if game.isUnlocked(id) && !isMaxed {
-          Button("\(game.cost(for: id)) pts", systemImage: "circle.fill") {
-            DihSoundEffects.play(.upgrade, settings: game.settings)
-            game.purchase(id)
+      if locked {
+        Label(definition.unlockText, systemImage: "lock.fill")
+          .font(.caption).foregroundStyle(.secondary)
+      } else {
+        HStack(alignment: .top, spacing: 10) {
+          VStack(alignment: .leading, spacing: 7) {
+            Divider().background(.quaternary)
+            detailRow(label: "CURRENT", value: effectText)
+            detailRow(label: "NEXT", value: nextEffectText)
+            detailRow(label: "COST", value: "\(selectedCost) pts")
           }
-          .buttonStyle(.borderedProminent)
-          .controlSize(.small)
-          .disabled(!affordable)
-        } else if isMaxed {
-          Label("MAX", systemImage: "checkmark.seal.fill").font(.caption.weight(.bold))
-            .foregroundStyle(.green)
-        } else {
-          Label(definition.unlockText, systemImage: "lock.fill").font(.caption).foregroundStyle(
-            .secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+          if !isMaxed {
+            Button("Buy \((selectedBulkQuantity < 0) ? "MAX" : "\(selectedPurchaseQuantity)")") {
+              DihSoundEffects.play(.upgrade, settings: game.settings)
+              _ = game.purchase(id, quantity: selectedPurchaseQuantity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(!canAfford(selectedPurchaseQuantity))
+            .frame(alignment: .topTrailing)
+          } else {
+            Label("MAX", systemImage: "checkmark.seal.fill")
+              .font(.caption.weight(.bold))
+              .foregroundStyle(.green)
+              .frame(alignment: .topTrailing)
+          }
         }
       }
     }
     .padding(14)
-    .background(.background, in: RoundedRectangle(cornerRadius: 10))
-    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.quaternary))
+    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    .overlay(RoundedRectangle(cornerRadius: 12).stroke(.quaternary, lineWidth: 1))
     .opacity(game.isUnlocked(id) || level > 0 ? 1 : 0.72)
   }
 
-  private var effectText: String { effectText(at: level) }
-  private var nextEffectText: String { effectText(at: level + 1) }
-
-  private func effectText(at level: Int) -> String {
-    var projectedSave = game.save
-    projectedSave.upgrades[id.rawValue] = level
-    switch id {
-    case .betterGrip:
-      return "Escape chance: \(Int(DihEconomy.runAwayChance(in: projectedSave) * 100))%"
-    case .stickyButton:
-      return "Movement delay: \(Int(DihEconomy.movementDelay(in: projectedSave)))s"
-    case .slowerDih: return "Escape and self-move chance reduced"
-    case .magnetHands:
-      return "Target size: \(Int(DihEconomy.catchRadiusMultiplier(in: projectedSave) * 100))%"
-    case .reflexes: return "Hover escape reduced"
-    case .biggerTarget:
-      return "Target size: \(Int(DihEconomy.targetScale(in: projectedSave) * 100))%"
-    case .quickHands: return "+\(level) points per catch"
-    case .comboTraining: return "Streak bonus: +\(DihEconomy.comboBonus(in: projectedSave))"
-    case .hotlineEfficiency:
-      return "Payout: \(DihEconomy.passivePointsPerInterval(in: projectedSave)) points"
-    case .fasterHotline:
-      return "Payout every \(Int(DihEconomy.passiveInterval(in: projectedSave)))s"
-    case .betterAdvice:
-      return "Advice efficiency: \(Int(DihEconomy.passiveMultiplier(in: projectedSave) * 100))%"
-    case .dedicatedOperator:
-      return "Offline cap: \(Int(DihEconomy.offlineDuration(in: projectedSave) / 3600))h"
-    case .automatedHotline, .hotlineMultiplier:
-      return "Passive multiplier: \(Int(DihEconomy.passiveMultiplier(in: projectedSave) * 100))%"
-    case .escapePrediction: return "Fewer surprise escapes"
-    case .cloneDiscount: return "Clone chance: 1 in \(DihEconomy.cloneChance(in: projectedSave))"
-    case .cloneCapacity: return "Clone limit: \(DihEconomy.cloneLimit(in: projectedSave))"
-    case .cloneRewards, .cloneMultiplier:
-      return "Clone reward: \(DihEconomy.cloneRewardMultiplier(in: projectedSave))x"
-    case .cloneCoordination:
-      return "Clone target: \(Int(DihEconomy.cloneTargetMultiplier(in: projectedSave) * 100))%"
-    case .luckyDih: return "Bonus chance: \(Int(DihEconomy.bonusChance(in: projectedSave) * 100))%"
-    case .criticalCatch:
-      return "Critical chance: \(Int(DihEconomy.criticalChance(in: projectedSave) * 100))%"
-    case .pointMultiplier:
-      return "Catch multiplier: \(DihEconomy.pointMultiplier(in: projectedSave))x"
-    case .streakMastery:
-      return "Streak multiplier: \(DihEconomy.streakMultiplier(in: projectedSave))x"
-    case .goldenDih:
-      return "Golden chance: \(Int(DihEconomy.goldenChance(in: projectedSave) * 100))%"
-    case .secondChance:
-      return "Streak save: \(Int(DihEconomy.secondChance(in: projectedSave) * 100))%"
-    case .arcadeLuck:
-      return "Rare event odds: \(Int((DihEconomy.arcadeLuck(in: projectedSave) - 1) * 100))% better"
-    case .combo: return "Current streak bonus: +\(DihEconomy.comboBonus(in: projectedSave))"
+  private func detailRow(label: String, value: String) -> some View {
+    HStack(alignment: .top, spacing: 10) {
+      Text(label)
+        .font(.caption2.weight(.black))
+        .foregroundStyle(.secondary)
+        .frame(width: 56, alignment: .leading)
+      Text(value)
+        .font(.caption)
+        .foregroundStyle(.primary)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+  }
+
+  private var effectText: String {
+    definition.effectDescription(game.save, level)
+  }
+
+  private var nextEffectText: String {
+    let nextLevel = min(level + 1, definition.maximumLevel)
+    return definition.effectDescription(game.save, nextLevel)
+  }
+
+  private func canAfford(_ quantity: Int) -> Bool {
+    if level >= definition.maximumLevel { return false }
+    guard quantity > 0 else { return false }
+    let buyable = min(quantity, definition.maximumLevel - level)
+    guard buyable > 0 else { return false }
+    let cost = DihEconomy.cost(for: id, fromLevel: level, quantity: buyable)
+    return game.points >= cost
   }
 }

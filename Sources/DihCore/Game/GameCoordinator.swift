@@ -9,6 +9,7 @@ public final class DihGame: ObservableObject {
   @Published public private(set) var scorePopup: String?
   @Published public private(set) var scorePopupID = 0
   @Published public private(set) var passiveProgress = 0.0
+  @Published public private(set) var effectiveTargetScale = 1.0
   @Published public var buttonPosition = CGPoint(x: 250, y: 210)
   @Published public var buttonText = "click me"
   @Published public var message = "Catch me."
@@ -40,6 +41,7 @@ public final class DihGame: ObservableObject {
   {
     self.persistence = persistence
     self.settings = settings
+    effectiveTargetScale = DihEconomy.effectiveTargetScale(in: save, largerButton: settings.data.largerButton)
     loadProgress()
     passiveTask = Task { [weak self] in
       while !Task.isCancelled {
@@ -77,10 +79,6 @@ public final class DihGame: ObservableObject {
     max(0, payoutInterval * (1 - passiveProgress))
   }
   public var targetScale: Double { DihEconomy.targetScale(in: save) }
-  public var effectiveTargetScale: Double {
-    targetScale * DihEconomy.catchRadiusMultiplier(in: save)
-      * (settings.data.largerButton ? 1.25 : 1)
-  }
   public var unlockedAchievements: [DihAchievementID] {
     save.achievements.compactMap(DihAchievementID.init(rawValue:))
   }
@@ -99,6 +97,11 @@ public final class DihGame: ObservableObject {
 
   public func isUnlocked(_ id: DihUpgradeID) -> Bool {
     DihEconomy.isUnlocked(id, in: save)
+  }
+
+  public func refreshDerivedScale() {
+    effectiveTargetScale = DihEconomy.effectiveTargetScale(
+      in: save, largerButton: settings.data.largerButton)
   }
 
   @discardableResult
@@ -239,17 +242,19 @@ public final class DihGame: ObservableObject {
   }
 
   @discardableResult
-  public func purchase(_ id: DihUpgradeID) -> Bool {
+  public func purchase(_ id: DihUpgradeID, quantity: Int = 1) -> Bool {
     guard isUnlocked(id) else { return false }
     let definition = definition(for: id)
     let currentLevel = level(for: id)
+    guard quantity > 0 else { return false }
     guard currentLevel < definition.maximumLevel else { return false }
-    let price = cost(for: id)
-    guard save.points >= price else { return false }
 
-    save.points -= price
-    save.upgrades[id.rawValue, default: 0] += 1
-    toast = "Bought \(definition.name) level \(currentLevel + 1)."
+    let purchased = DihEconomy.purchase(id, quantity: quantity, in: &save)
+    guard purchased > 0 else { return false }
+
+    let newLevel = level(for: id)
+    toast = "Bought \(definition.name) level \(newLevel)."
+    refreshDerivedScale()
     evaluateAchievements()
     objectWillChange.send()
     persist()
@@ -291,6 +296,7 @@ public final class DihGame: ObservableObject {
 
   private func applyLoadedSave(_ loadedSave: DihSaveData) {
     save = loadedSave
+    refreshDerivedScale()
     let now = Date()
     if loadedSave.ownedHelpers > 0 {
       let elapsed = min(
@@ -330,6 +336,7 @@ public final class DihGame: ObservableObject {
     if settings.data.showPassiveNotifications {
       toast = "The hotline generated +\(awarded) points."
     }
+    refreshDerivedScale()
     passiveProgress = 0
     evaluateAchievements()
     persist()

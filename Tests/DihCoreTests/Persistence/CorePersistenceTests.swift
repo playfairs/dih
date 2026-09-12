@@ -239,6 +239,16 @@ final class DihCoreTests: XCTestCase {
     XCTAssertGreaterThan(levelMaxTarget, levelOneTarget)
   }
 
+  func testBiggerTargetChangesEffectiveTargetScaleThroughEconomyAPI() {
+    var save = DihSaveData()
+    let baseSize = DihEconomy.effectiveTargetScale(in: save, largerButton: false)
+
+    save.upgrades[DihUpgradeID.biggerTarget.rawValue] = 1
+    let upgradedSize = DihEconomy.effectiveTargetScale(in: save, largerButton: false)
+
+    XCTAssertGreaterThan(upgradedSize, baseSize)
+  }
+
   func testSettingsRoundTripIsSeparateFromGameSave() async {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let persistence = DihSettingsPersistence(
