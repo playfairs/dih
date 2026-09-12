@@ -33,7 +33,7 @@ public final class DihGame: ObservableObject {
     "The universe says: maybe close one browser tab.",
     "You are doing great. Suspiciously great.",
     "A wise person once said: ship it and observe.",
-    "`nox run` is probably how you are seeing this"
+    "`nox run` is probably how you are seeing this",
   ]
 
   public init(persistence: DihPersistence = DihPersistence(), settings: DihSettings = DihSettings())

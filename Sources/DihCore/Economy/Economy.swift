@@ -60,7 +60,10 @@ public enum DihEconomy {
       save.totalPointsEarned >= definition.minimumPoints,
       definition.prerequisites.allSatisfy({ level(for: $0.0, in: save) >= $0.1 })
     else { return false }
-    if upgrade == .hotlineEfficiency || upgrade == .fasterHotline || upgrade == .betterAdvice || upgrade == .dedicatedOperator || upgrade == .automatedHotline || upgrade == .hotlineMultiplier {
+    if upgrade == .hotlineEfficiency || upgrade == .fasterHotline || upgrade == .betterAdvice
+      || upgrade == .dedicatedOperator || upgrade == .automatedHotline
+      || upgrade == .hotlineMultiplier
+    {
       return save.ownedHelpers > 0
     }
     if upgrade == .cloneDiscount { return save.totalCloneWindowsOpened > 0 }

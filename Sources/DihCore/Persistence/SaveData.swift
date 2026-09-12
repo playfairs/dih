@@ -76,8 +76,10 @@ public struct DihSaveData: Codable, Sendable {
     achievements = try values.decodeIfPresent([String].self, forKey: .achievements) ?? []
 
     let legacyValues = try? decoder.container(keyedBy: LegacyCodingKeys.self)
-    let legacyHelperActive = try legacyValues?.decodeIfPresent(Bool.self, forKey: .helperActive) ?? false
-    ownedHelpers = try values.decodeIfPresent(Int.self, forKey: .ownedHelpers) ?? (legacyHelperActive ? 1 : 0)
+    let legacyHelperActive =
+      try legacyValues?.decodeIfPresent(Bool.self, forKey: .helperActive) ?? false
+    ownedHelpers =
+      try values.decodeIfPresent(Int.self, forKey: .ownedHelpers) ?? (legacyHelperActive ? 1 : 0)
     helperBaseIncome = try values.decodeIfPresent(Double.self, forKey: .helperBaseIncome) ?? 1.0
     lastSaved = try values.decodeIfPresent(Date.self, forKey: .lastSaved) ?? Date()
     lastUpdate = try values.decodeIfPresent(Date.self, forKey: .lastUpdate) ?? lastSaved
