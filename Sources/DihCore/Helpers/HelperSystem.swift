@@ -34,8 +34,8 @@ public struct DihHelperSystem {
 
   public static func rate(in save: DihSaveData) -> Double {
     let interval = interval(in: save)
-    guard interval > 0 else { return 0 }
-    return Double(payout(in: save)) / interval
+    guard interval > 2 else { return Double(payout(in: save)) * 60 }
+    return Double(payout(in: save)) / interval * 60
   }
 
   public static func lifetime(in save: DihSaveData) -> Int {
