@@ -64,8 +64,17 @@ final class DihCoreTests: XCTestCase {
     XCTAssertEqual(futureCost, cappedCost)
   }
 
+  func testFasterHotlineAndAutomatedHotlineCanDrivePassiveIntervalToOneSecond() {
+    var save = DihSaveData()
+    save.ownedHelpers = 1
+    save.upgrades[DihUpgradeID.fasterHotline.rawValue] = 31
+    save.upgrades[DihUpgradeID.automatedHotline.rawValue] = 10
+
+    XCTAssertEqual(DihEconomy.passiveInterval(in: save), 1, accuracy: 0.0001)
+  }
+
   func testUpgradeDefinitionsExposeSensibleMaximumLevelsForFiniteEffects() {
-    XCTAssertEqual(DihUpgradeDefinition.definition(for: .fasterHotline).maximumLevel, 15)
+    XCTAssertEqual(DihUpgradeDefinition.definition(for: .fasterHotline).maximumLevel, 31)
     XCTAssertEqual(DihUpgradeDefinition.definition(for: .dedicatedOperator).maximumLevel, 4)
     XCTAssertEqual(DihUpgradeDefinition.definition(for: .automatedHotline).maximumLevel, 10)
     XCTAssertEqual(DihUpgradeDefinition.definition(for: .cloneCapacity).maximumLevel, 3)
