@@ -58,6 +58,19 @@ final class DihCoreTests: XCTestCase {
     XCTAssertEqual(save.ownedHelpers, 3)
   }
 
+  func testHelperCostSaturatesWhenOwnedHelperCountOverflowsTheGrowthSeries() {
+    let futureCost = DihEconomy.helperCost(forOwned: 2_523)
+    let cappedCost = DihEconomy.helperCost(forOwned: DihEconomy.helperCostGrowthLimit)
+    XCTAssertEqual(futureCost, cappedCost)
+  }
+
+  func testUpgradeDefinitionsExposeSensibleMaximumLevelsForFiniteEffects() {
+    XCTAssertEqual(DihUpgradeDefinition.definition(for: .fasterHotline).maximumLevel, 15)
+    XCTAssertEqual(DihUpgradeDefinition.definition(for: .dedicatedOperator).maximumLevel, 4)
+    XCTAssertEqual(DihUpgradeDefinition.definition(for: .automatedHotline).maximumLevel, 10)
+    XCTAssertEqual(DihUpgradeDefinition.definition(for: .cloneCapacity).maximumLevel, 3)
+  }
+
   func testHelperProductionUsesOwnedHelpersOnlyAndNeverLevelZeroBase() {
     let noHelpers = DihSaveData()
     XCTAssertEqual(DihEconomy.totalPassiveIncome(in: noHelpers), 0)

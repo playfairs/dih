@@ -10,7 +10,7 @@ public extension DihUpgradeDefinition {
     costGrowthRate: 0.02,
     baseEffect: 1.0,
     effectGrowthRate: 0.05,
-    maximumLevel: DihUpgradeConstants.defaultMaximumLevel,
+    maximumLevel: 10,
     unlockText: "Requires Dedicated Operator Lv. 2",
     tier: .elite,
     prerequisites: [(.dedicatedOperator, 2)],

@@ -10,7 +10,7 @@ public extension DihUpgradeDefinition {
     costGrowthRate: 0.02,
     baseEffect: 1.0,
     effectGrowthRate: 0.05,
-    maximumLevel: DihUpgradeConstants.defaultMaximumLevel,
+    maximumLevel: 3,
     unlockText: "Requires Clone Discount Lv. 2",
     tier: .advanced,
     prerequisites: [(.cloneDiscount, 2)],

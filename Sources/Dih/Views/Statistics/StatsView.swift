@@ -65,14 +65,7 @@ struct StatsView: View {
           LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 8)], spacing: 8) {
             ForEach(DihAchievementID.allCases, id: \.self) { achievement in
               let unlocked = game.unlockedAchievements.contains(achievement)
-              Label(achievement.title, systemImage: unlocked ? achievement.icon : "lock.fill")
-                .font(.caption)
-                .foregroundStyle(unlocked ? .primary : .secondary)
-                .padding(9)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                  unlocked ? Color.orange.opacity(0.12) : Color.secondary.opacity(0.12),
-                  in: RoundedRectangle(cornerRadius: 7))
+              AchievementBadge(achievement: achievement, unlocked: unlocked)
             }
           }
         }
@@ -84,6 +77,95 @@ struct StatsView: View {
       Button("Cancel", role: .cancel) {}
     } message: {
       Text("This deletes points, upgrades, achievements, and statistics. It cannot be undone.")
+    }
+  }
+
+  private struct AchievementBadge: View {
+    let achievement: DihAchievementID
+    let unlocked: Bool
+
+    @State private var showDescription = false
+    @State private var hoverWorkItem: DispatchWorkItem?
+    @State private var tapWorkItem: DispatchWorkItem?
+
+    var body: some View {
+      VStack(alignment: .leading, spacing: 6) {
+        Label(achievement.title, systemImage: unlocked ? achievement.icon : "lock.fill")
+          .font(.caption)
+          .foregroundStyle(unlocked ? .primary : .secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .padding(9)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(
+        unlocked ? Color.orange.opacity(0.12) : Color.secondary.opacity(0.12),
+        in: RoundedRectangle(cornerRadius: 7))
+      .contentShape(Rectangle())
+      .overlay(alignment: .top) {
+        if showDescription {
+          AchievementTooltip(achievement: achievement)
+            .offset(y: -50)
+            .zIndex(10)
+        }
+      }
+      .onHover { hovering in
+        if hovering {
+          hoverWorkItem?.cancel()
+          let work = DispatchWorkItem {
+            showDescription = true
+          }
+          hoverWorkItem = work
+          DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: work)
+        } else {
+          hoverWorkItem?.cancel()
+          hoverWorkItem = nil
+          showDescription = false
+        }
+      }
+      .onTapGesture {
+        tapWorkItem?.cancel()
+        showDescription = true
+        let work = DispatchWorkItem {
+          showDescription = false
+        }
+        tapWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: work)
+      }
+    }
+  }
+
+  private struct AchievementTooltip: View {
+    let achievement: DihAchievementID
+
+    var body: some View {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(achievement.title)
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.primary)
+        Text(achievement.description)
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .padding(10)
+      .frame(width: 260)
+      .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+      .overlay(
+        Triangle().fill(.thinMaterial),
+        alignment: .bottom
+      )
+      .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 3)
+    }
+  }
+
+  private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+      var path = Path()
+      path.move(to: CGPoint(x: rect.midX - 7, y: rect.maxY))
+      path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY + 7))
+      path.addLine(to: CGPoint(x: rect.midX + 7, y: rect.maxY))
+      path.closeSubpath()
+      return path
     }
   }
 

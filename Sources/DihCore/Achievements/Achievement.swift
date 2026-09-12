@@ -6,6 +6,29 @@ public enum DihAchievementID: String, CaseIterable, Codable, Sendable {
   case points10000, streak10, streak50, clone10, firstOffline, upgradeCollector
   case goldenCatch, criticalCatch, millionaire, upgradeEverything
 
+  public var description: String {
+    switch self {
+    case .firstCatch: "The first button catch starts a run."
+    case .catches10: "Ten catches means you are learning the pace."
+    case .catches100: "One hundred catches is a real rhythm."
+    case .catches1000: "A thousand catches and the button remembers your name."
+    case .firstUpgrade: "The first store upgrade makes the loop louder."
+    case .firstHotlineCall: "You called the hotline and opened the helper queue."
+    case .firstPassivePoint: "A passive point is a little income with no click."
+    case .passive100: "The hotline has generated one hundred points."
+    case .points10000: "A ten-thousand point run is now in the books."
+    case .streak10: "Ten catches in a row is starting to feel unfair."
+    case .streak50: "Fifty catches in a row means the button is truly nervous."
+    case .clone10: "Ten clone windows have opened."
+    case .firstOffline: "The game counted an offline helper payout."
+    case .upgradeCollector: "You have bought enough upgrades to become a collector."
+    case .goldenCatch: "A golden catch drops a lucky sparkle."
+    case .criticalCatch: "A sharp critical catch found the right timing."
+    case .millionaire: "You reached one million total points."
+    case .upgradeEverything: "You bought every upgrade in the shop."
+    }
+  }
+
   public var title: String {
     switch self {
     case .firstCatch: "First Contact"

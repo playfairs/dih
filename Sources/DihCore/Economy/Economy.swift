@@ -5,6 +5,7 @@ public enum DihEconomy {
   public static let maximumCloneWindows = 3
   public static let helperPurchaseBaseCost = 100
   public static let helperCostGrowthRate = 1.10
+  public static let helperCostGrowthLimit = 60
   public static let helperBasePointsPerUnit = 1.0
 
   public static func level(for upgrade: DihUpgradeID, in save: DihSaveData) -> Int {
@@ -77,8 +78,11 @@ public enum DihEconomy {
 
   public static func helperCost(forOwned owned: Int) -> Int {
     let n = max(0, owned)
-    let raw = Double(helperPurchaseBaseCost) * pow(helperCostGrowthRate, Double(n))
+    let boundedOwned = min(n, helperCostGrowthLimit)
+    let raw = Double(helperPurchaseBaseCost) * pow(helperCostGrowthRate, Double(boundedOwned))
+    guard raw.isFinite else { return Int.max }
     let normalized = raw - 1e-6
+    guard normalized <= Double(Int.max) else { return Int.max }
     return max(1, Int(ceil(normalized)))
   }
 
