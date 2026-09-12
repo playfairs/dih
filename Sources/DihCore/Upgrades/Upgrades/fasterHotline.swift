@@ -10,7 +10,7 @@ public extension DihUpgradeDefinition {
     costGrowthRate: 0.02,
     baseEffect: 1.0,
     effectGrowthRate: 0.05,
-    maximumLevel: 15,
+    maximumLevel: 30,
     unlockText: "Call the hotline once",
     tier: .basic,
     prerequisites: [],
