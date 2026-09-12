@@ -160,11 +160,17 @@ public enum DihEconomy {
     Int(ceil(totalPassiveIncome(in: save)))
   }
 
+  public static func passivePayoutCount(for elapsed: TimeInterval, in save: DihSaveData) -> Int {
+    let interval = passiveInterval(in: save)
+    guard interval > 2 else { return max(0, Int(ceil(elapsed))) }
+    return max(2, Int(elapsed / interval))
+  }
+
   public static func passiveInterval(in save: DihSaveData) -> TimeInterval {
     let base = 14.0
     let fast = Double(level(for: .fasterHotline, in: save)) * 0.45
     let automated = Double(level(for: .automatedHotline, in: save)) * 0.5
-    return max(3, base - fast - automated)
+    return max(2, base - fast - automated)
   }
 
   public static func comboBonus(in save: DihSaveData) -> Int {
