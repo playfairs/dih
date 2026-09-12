@@ -20,9 +20,10 @@ tasks:
 
             cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUILD_PATH}/Contents/MacOS/"
 
-            cp "Sources/${APP_NAME}/Info.plist" "${APP_BUILD_PATH}/Contents/"
+            cp "Sources/${APP_NAME}/Resources/Info.plist" "${APP_BUILD_PATH}/Contents/"
 
             cp -r "Sources/${APP_NAME}/Resources/"* "${APP_BUILD_PATH}/Contents/Resources/"
+            cp -r "${BUILD_DIR}/${APP_NAME}_${APP_NAME}.bundle" "${APP_BUILD_PATH}/Contents/Resources/"
 
             echo "App bundle created at: ${APP_BUILD_PATH}"
             echo "You can now run: open ${APP_BUILD_PATH}"
@@ -43,12 +44,23 @@ tasks:
 
             cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUILD_PATH}/Contents/MacOS/"
 
-            cp "Sources/${APP_NAME}/Info.plist" "${APP_BUILD_PATH}/Contents/"
+            cp "Sources/${APP_NAME}/Resources/Info.plist" "${APP_BUILD_PATH}/Contents/"
 
             cp -r "Sources/${APP_NAME}/Resources/"* "${APP_BUILD_PATH}/Contents/Resources/"
+            cp -r "${BUILD_DIR}/${APP_NAME}_${APP_NAME}.bundle" "${APP_BUILD_PATH}/Contents/Resources/"
 
             echo "App bundle created at: ${APP_BUILD_PATH}"
             echo "You can now run: open ${APP_BUILD_PATH}"
+    bundle:
+        @nox app
+    build-dmg:
+        @nox bundle
+        run: |
+            APP_PATH=".build/arm64-apple-macosx/release/Dih.app"
+            DMG_PATH=".build/arm64-apple-macosx/release/Dih.dmg"
+            rm -f "${DMG_PATH}"
+            hdiutil create -volname "Dih" -srcfolder "${APP_PATH}" -ov -format UDZO "${DMG_PATH}"
+            echo "DMG created at: ${DMG_PATH}"
     clean:
         run: swift package clean
     clean-app:
